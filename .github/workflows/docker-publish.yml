@@ -36,4 +36,4 @@ jobs:
       - name: Authenticate with EKS cluster
         run: aws eks --region ap-east-1 update-kubeconfig --name kub-dep-demo
       - name: Deploy to EKS
-        run: kubectl apply -f k8s/chatbot-deployment -f k8s/redis-deployment.yaml
+        run: kubectl apply -f k8s/chatbot-deployment.yaml -f k8s/redis-deployment.yaml
