@@ -1,2 +1,3 @@
 docker-compose.yaml
 k8s/chatbot-secret.yaml
+testing.py

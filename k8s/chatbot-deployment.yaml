@@ -42,5 +42,10 @@ spec:
                 secretKeyRef:
                   name: chatbot-secret
                   key: REDIS_PASSWORD
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: chatbot-secret
+                  key: OPENAI_API_KEY
             - name: REDISPORT
               value: "6379"
