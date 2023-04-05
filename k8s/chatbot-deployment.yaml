@@ -5,7 +5,7 @@ metadata:
 spec:
   selector:
     app: chatbot
-  type: LoadBalancer
+  type: ClusterIP
   ports:
     - protocol: TCP
       port: 80
@@ -42,15 +42,15 @@ spec:
                 secretKeyRef:
                   name: chatbot-secret
                   key: REDIS_PASSWORD
-            - name: OPENAI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: chatbot-secret
-                  key: OPENAI_API_KEY
-            - name: OPENAI_API_KEY
+            - name: YOUTUBE_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: chatbot-secret
                   key: YOUTUBE_API_KEY
             - name: REDISPORT
               value: "6379"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: chatbot-secret
+                  key: OPENAI_API_KEY

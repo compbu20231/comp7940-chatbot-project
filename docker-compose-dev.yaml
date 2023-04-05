@@ -5,12 +5,6 @@ services:
     volumes:
       - ./python/src:/app
     environment:
-      ACCESS_TOKEN: 5778452675:AAFYX2aD0nvv489JI6v5bTpC5dbsvPsMA1U
-      HOST: redis
-      REDIS_PASSWORD: comp7940passwordlab8
-      REDISPORT: 6379
-      OPENAI_API_KEY: "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"
-      YOUTUBE_API_KEY: "AIzaSyA83sMFj6C__cQHC6ttp-BXK9Uv4RnyOSY"
     command: tail -f /dev/null
     depends_on:
       - redis

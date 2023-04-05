@@ -54,7 +54,7 @@ def main():
     dispatcher.add_handler(CallbackQueryHandler(userselected))
     dispatcher.add_handler(MessageHandler(Filters.command, welcome))
     dispatcher.add_handler(default_handler)
-    dispatcher.add_error_handler(error_handler)
+    # dispatcher.add_error_handler(error_handler)
 
     # To start the bot:
     updater.start_polling()
@@ -92,7 +92,7 @@ def cancel(update: Update, context):
 def writeReview(update: Update, context: CallbackContext)-> None:
     try:
         global readwrite
-        if readwrite=="Write":
+        if readwrite is not None and readwrite=="Write":
             msg = update.message.text
             global selectedLink
             tvReview = get_tv_review(selectedLink)
@@ -178,7 +178,8 @@ def userselected(update: Update, context: CallbackContext) -> None:
             tvshow(update, context)
         else:
             tvReview = get_tv_review(selectedLink)
-            context.bot.send_photo(chat_id=update.effective_chat.id, photo=tvReview['image'])
+            if tvReview['image'] is not None:
+                context.bot.send_photo(chat_id=update.effective_chat.id, photo=tvReview['image'])
             context.bot.send_message(chat_id=update.effective_chat.id, 
                                      text=userSelectedTexts[3], reply_markup=get_read_write_option())
     elif callback_text == userSelectedTexts[2]:
@@ -188,7 +189,7 @@ def userselected(update: Update, context: CallbackContext) -> None:
             context.bot.send_message(chat_id=update.effective_chat.id, 
                                      parse_mode='HTML',
                                      text=selectedVideo['link'])
-            welcome(update, context)
+            context.bot.send_message(chat_id=update.effective_chat.id, text='Click /start to try again')
         else:
             cook(update, context)
     elif callback_text == userSelectedTexts[3]:
@@ -205,7 +206,7 @@ def userselected(update: Update, context: CallbackContext) -> None:
 def error_handler(update, context):
     """Log the error and send a message to the user."""
     logging.warning('Update "%s" caused error "%s"', update, context.error)
-    context.bot.send_message(chat_id=update.message.chat_id, text="Sorry, an error occurred.")
+    # context.bot.send_message(chat_id=update.message.chat_id, text="Sorry, an error occurred.")
 
 
 def welcome(update, context):

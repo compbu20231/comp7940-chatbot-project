@@ -2,3 +2,4 @@ docker-compose.yaml
 k8s/chatbot-secret.yaml
 testing.py
 python/src/__pycache__
+deletcube.ps1
