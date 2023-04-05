@@ -47,5 +47,10 @@ spec:
                 secretKeyRef:
                   name: chatbot-secret
                   key: OPENAI_API_KEY
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: chatbot-secret
+                  key: YOUTUBE_API_KEY
             - name: REDISPORT
               value: "6379"

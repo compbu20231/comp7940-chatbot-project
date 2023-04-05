@@ -19,3 +19,12 @@ def get_tv_information():
 
     randomShows = random.sample(shows, min(5, len(shows)))
     return randomShows
+
+
+def get_tv_review(url):
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, 'html.parser')
+    image = soup.find(class_='hero-image')['style'].split('"')[1]
+    review = soup.find(class_='title-info-synopsis').text
+    title = soup.find('h1',class_='title-title').text
+    return {'review': review, 'image': image, 'link': url, 'title': title}
