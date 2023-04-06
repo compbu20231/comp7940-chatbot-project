@@ -34,6 +34,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-east-1
       - name: Authenticate with EKS cluster
-        run: aws eks --region ap-east-1 update-kubeconfig --name kub-dep-demo
+        run: aws eks --region ap-east-1 update-kubeconfig --name comp7940-chatbot-cluster
       - name: Deploy to EKS
         run: kubectl apply -f k8s/redis-deployment.yaml -f k8s/chatbot-deployment.yaml
