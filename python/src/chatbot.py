@@ -1,117 +1,41 @@
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler, ConversationHandler
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from callopenai import *
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext, MessageHandler, Filters, ConversationHandler
 from hiking import *
 from tvshow import *
 from cookvideo import *
-import os
-import logging
+from urllib.parse import urlparse
 import redis
+import os
 import json
-import datetime
+import logging
 
 
-global redis1
 
-userSelectedTexts = [
-    "select the desired route",
-    "select the desired tv show",
-    "select the desired cooking videos",
-    "select read or write tv show review",
-    "Please input your tv show review here"
-]
 
-SLECTTVSHOW = range(1)
-
-def main():
-    updater = Updater(token=(os.environ['ACCESS_TOKEN']), use_context=True)
-    dispatcher = updater.dispatcher
-    global redis1
-    redis1 = redis.Redis(host=(os.environ['HOST']), 
+redis_conn = redis.Redis(host=(os.environ['HOST']), 
                          password=(os.environ['REDIS_PASSWORD']), 
                          port=(os.environ['REDISPORT']))
-    # You can set this logging module, so you will know when and why things do not work as expected
-    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-
-    tvshow_conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("tvshow", tvshow)],
-        states={
-            SLECTTVSHOW: [MessageHandler(Filters.text, writeReview)]
-        },
-        fallbacks=[CommandHandler('cancel', cancel)]
-    )
-
-    # register a dispatcher to handle message: here we register an echo dispatcher
-    default_handler = MessageHandler(Filters.text & (~Filters.command), welcome)
-    # on different commands - answer in Telegram
-    dispatcher.add_handler(tvshow_conv_handler)
-    # dispatcher.add_handler(CommandHandler("add", writeReview))
-    dispatcher.add_handler(CommandHandler("hello", hello))
-    dispatcher.add_handler(CommandHandler("callai", callai))
-    dispatcher.add_handler(CommandHandler("hiking", hiking))
-    # dispatcher.add_handler(CommandHandler("tvshow", tvshow))
-    dispatcher.add_handler(CommandHandler("cook", cook))
-    dispatcher.add_handler(CallbackQueryHandler(userselected))
-    dispatcher.add_handler(MessageHandler(Filters.command, welcome))
-    dispatcher.add_handler(default_handler)
-    # dispatcher.add_error_handler(error_handler)
-
-    # To start the bot:
-    updater.start_polling()
-    updater.idle()
-
-def echo(update, context):
-    reply_message = update.message.text.upper()
-    logging.info("Update: " + str(update))
-    logging.info("context: " + str(context))
-    context.bot.send_message(chat_id=update.effective_chat.id, text= reply_message)
-    # Define a few command handlers. These usually take the two arguments update and
-    # context. Error handlers also receive the raised TelegramError object in error.
 
 
-def hello(update: Update, context: CallbackContext) -> None:
-    msg = context.args[0]
-    update.message.reply_text(f'Good day, {msg}!')
+HIKING_OPTIONS, HIKING_READ, HIKING_WRITE, HIKING_READ_PHOTO  = range(4)
+TVSHOW_READ_PHOTO, TVSHOW_WRITE_PROMPT, TVSHOW_WRITE, TVSHOW_END  = range(4)
+COOKING_OPTIONS, COOKING_READ, COOKING_WRITE, COOKING_READ_VIDEO  = range(4)
 
-def add(update: Update, context: CallbackContext) -> None:
-    """Send a message when the command /add is issued."""
-    try:
-        global redis1
-        logging.info(context.args[0])
-        msg = context.args[0] # /add keyword <-- this should store the keyword
-        redis1.incr(msg)
-        update.message.reply_text('You have said ' + msg + ' for ' +
-        redis1.get(msg).decode('UTF-8') + ' times.')
-    except (IndexError, ValueError):
-        update.message.reply_text('Usage: /add <keyword>')
+def hiking_entrance(update, context):
+    read_text = "Read hiking route / photo"
+    write_text = "Share hiking route / photo"
+    reply_markup = get_read_write_option(read_text, write_text, str(HIKING_READ), str(HIKING_WRITE))
+    update.message.reply_text("Choose an option:", reply_markup=reply_markup)
+    return HIKING_OPTIONS
 
-def cancel(update: Update, context):
-    return ConversationHandler.END
+def cooking_entrance(update, context):
+    read_text = "Read cooking video"
+    write_text = "Share cooking video"
+    reply_markup = get_read_write_option(read_text, write_text, str(COOKING_READ), str(COOKING_WRITE))
+    update.message.reply_text("Choose an option:", reply_markup=reply_markup)
+    return COOKING_OPTIONS
 
-
-def writeReview(update: Update, context: CallbackContext)-> None:
-    try:
-        global readwrite
-        if readwrite is not None and readwrite=="Write":
-            msg = update.message.text
-            global selectedLink
-            tvReview = get_tv_review(selectedLink)
-            review = {"link" : tvReview["link"], "title" : tvReview["title"], "time" : datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "content":msg}
-            review_json = json.dumps(review)
-            redis1.lpush(update.message.from_user.id, review_json)
-            context.bot.send_message(chat_id=update.effective_chat.id, text= "Thank you for your review!")
-        welcome(update, context)
-        return ConversationHandler.END
-        
-    except (IndexError, ValueError):
-        update.message.reply_text('Error Occur')
-
-def callai(update: Update, context: CallbackContext) -> None:
-    msg = " ".join(context.args)
-    response = checkOpenAI(msg)
-    update.message.reply_text(response)
-
-def hiking(update: Update, context: CallbackContext) -> None:
+def hiking_read(update, context):
     global randomPhotos
     hiking_information = get_hiking_information()
     btnOptions = []
@@ -123,9 +47,23 @@ def hiking(update: Update, context: CallbackContext) -> None:
     reply_keyboard_markup = InlineKeyboardMarkup(btnOptions)
     randomPhotos = hiking_information[1]
     # context.bot.send_photo(chat_id=update.effective_chat.id, photo=photo)
-    context.bot.send_message(chat_id=update.effective_chat.id, text=userSelectedTexts[0], reply_markup=reply_keyboard_markup)
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Please select the hiking route", reply_markup=reply_keyboard_markup)
+    return HIKING_READ_PHOTO
 
-def tvshow(update: Update, context: CallbackContext) -> None:
+def cooking_read(update, context):
+    global randomCookVideos
+    randomCookVideos = get_cooking_video_information()
+    btnOptions = []
+    for index, cookVideo in enumerate(randomCookVideos):
+        btnOptions.append([InlineKeyboardButton(
+                text=cookVideo['title'], callback_data=index)])
+    btnOptions.append( [InlineKeyboardButton(
+                text="Give me other cooking videos", callback_data=len(randomCookVideos))])
+    reply_keyboard_markup = InlineKeyboardMarkup(btnOptions)
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Please select the video", reply_markup=reply_keyboard_markup)
+    return COOKING_READ_VIDEO
+
+def tvshow_read(update, context):
     global randomShows
     randomShows = get_tv_information()
     # print(randomShows)
@@ -136,105 +74,230 @@ def tvshow(update: Update, context: CallbackContext) -> None:
     btnOptions.append( [InlineKeyboardButton(
                 text="Give me other tv shows", callback_data=0)])
     reply_keyboard_markup = InlineKeyboardMarkup(btnOptions)
-    context.bot.send_message(chat_id=update.effective_chat.id, text=userSelectedTexts[1], reply_markup=reply_keyboard_markup)
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Please select the TV Show", reply_markup=reply_keyboard_markup)
     # context.bot.send_message(chat_id=update.effective_chat.id, text=userSelectedTexts[1])
-    return SLECTTVSHOW
-    
-
-def cook(update: Update, context: CallbackContext) -> None:
-    global randomCookVideos
-    randomCookVideos = get_cooking_video_information()
-    # print(randomShows)
-    btnOptions = []
-    for index, cookVideo in enumerate(randomCookVideos):
-        btnOptions.append([InlineKeyboardButton(
-                text=cookVideo['title'], callback_data=index)])
-        #  url=cookVideo['link']
-    btnOptions.append( [InlineKeyboardButton(
-                text="Give me other cooking videos", callback_data=len(randomCookVideos))])
-    reply_keyboard_markup = InlineKeyboardMarkup(btnOptions)
-    context.bot.send_message(chat_id=update.effective_chat.id, text=userSelectedTexts[2], reply_markup=reply_keyboard_markup)
-
-
-def userselected(update: Update, context: CallbackContext) -> None:
+    return TVSHOW_READ_PHOTO
+ 
+def hiking_photo(update, context):
+    query = update.callback_query
     global randomPhotos
+    try:
+        index = int(query.data)
+        photo = randomPhotos[int(query.data)]
+        text = update.callback_query.message.reply_markup.inline_keyboard[index][0].text
+        context.bot.send_photo(chat_id=update.effective_chat.id, photo=photo)
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Here is the photo from {}".format(text))
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Click /start to try again')
+        return ConversationHandler.END
+    except:
+        return hiking_read(update, context)
+
+def cooking_video(update, context):
+    query = update.callback_query
     global randomCookVideos
-    # print(update.callback_query)
-    callback_data = update.callback_query.data
-    callback_text = update.callback_query.message.text
-    if callback_text == userSelectedTexts[0]:
-        selectedIndex = int(callback_data)
-        if selectedIndex < len(randomPhotos):
-            selectedText = update.callback_query.message.reply_markup.inline_keyboard[selectedIndex][0].text
-            context.bot.send_photo(chat_id=update.effective_chat.id, photo=randomPhotos[selectedIndex])
-            context.bot.send_message(chat_id=update.effective_chat.id, text='''Here is the photo from {}'''.format(selectedText))
-            context.bot.send_message(chat_id=update.effective_chat.id, text='Click /start to try again')
-        else:
-            hiking(update, context)
-    elif callback_text == userSelectedTexts[1]:
-        global selectedLink
-        selectedLink = callback_data
-        if selectedLink.isnumeric():
-            tvshow(update, context)
-        else:
-            tvReview = get_tv_review(selectedLink)
-            if tvReview['image'] is not None:
-                context.bot.send_photo(chat_id=update.effective_chat.id, photo=tvReview['image'])
-            context.bot.send_message(chat_id=update.effective_chat.id, 
-                                     text=userSelectedTexts[3], reply_markup=get_read_write_option())
-    elif callback_text == userSelectedTexts[2]:
-        selectedIndex = int(callback_data)
-        if selectedIndex < len(randomCookVideos):
-            selectedVideo = randomCookVideos[selectedIndex]
-            context.bot.send_message(chat_id=update.effective_chat.id, 
+    try:
+        selectedVideo = randomCookVideos[int(query.data)]
+        context.bot.send_message(chat_id=update.effective_chat.id, 
                                      parse_mode='HTML',
                                      text=selectedVideo['link'])
-            context.bot.send_message(chat_id=update.effective_chat.id, text='Click /start to try again')
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Click /start to try again')
+        return ConversationHandler.END
+    except:
+        return cooking_read(update, context)
+
+def tvshow_photo(update, context):
+    query = update.callback_query
+    global randomShows
+    try:
+        if isinstance(query.data, int):
+            tvshow_read(update, context)
         else:
-            cook(update, context)
-    elif callback_text == userSelectedTexts[3]:
-        tvReview = get_tv_review(selectedLink)
-        global readwrite
-        if callback_data == "Read":
-            readwrite = "Read"
-            context.bot.send_message(chat_id=update.effective_chat.id, text=tvReview['review'])
-            context.bot.send_message(chat_id=update.effective_chat.id, text='Click /start to try again')
+            global tvReview
+            tvReview = get_tv_review(query.data)
+            if tvReview['image'] is not None:
+                context.bot.send_photo(chat_id=update.effective_chat.id, photo=tvReview['image'])
+            if tvReview['review'] != 'review not found':
+                context.bot.send_message(chat_id=update.effective_chat.id, text=tvReview['review'])
+                reply_markup = get_read_write_option('Yes', 'No', str(TVSHOW_WRITE), str(TVSHOW_END))
+                context.bot.send_message(chat_id=update.effective_chat.id, 
+                                        text='Do you want to write the review of this show ?', reply_markup=reply_markup)
+                return TVSHOW_WRITE_PROMPT
+            else:
+                tvshow_read(update, context)
+    except:
+        return tvshow_read(update, context)
+  
+
+def hiking_write(update, context):
+    message = update.message
+    if len(message.photo) > 0 and message.caption is not None:
+        photo_file = message.photo[-1].get_file()
+        hiking_data = {
+            "image" : photo_file.file_path,
+            "id" : message.chat.id,
+            "route" : message.caption
+        }
+        redis_conn.lpush("hiking", json.dumps(hiking_data))
+        update.message.reply_text("Thank you for your share, Click /start to try again")
+        return ConversationHandler.END
+    else:
+        update.message.reply_text("Hiking photo or caption is missing, please input again!")
+
+def cooking_write(update, context):
+    message = update.message
+    if message.video is not None:
+        video_id = update.message.video.file_id
+        cooking_data = {
+            "video_id" : video_id,
+            "caption": message.caption,
+            "id" : message.chat.id,
+        }
+        redis_conn.lpush("cooking", json.dumps(cooking_data))
+        update.message.reply_text("Thank you for your share, Click /start to try again")
+        return ConversationHandler.END
+    elif message.text is not None:
+        parsed_url = urlparse(message.text)
+        if parsed_url.scheme and parsed_url.netloc:
+            cooking_data = {
+                "link" : message.text,
+                "id" : message.chat.id,
+            }
+            redis_conn.lpush("cooking", json.dumps(cooking_data))
+            update.message.reply_text("Thank you for your share, Click /start to try again")
+            return ConversationHandler.END
         else:
-            readwrite = "Write"
-            context.bot.send_message(chat_id=update.effective_chat.id, text=userSelectedTexts[4])
+            update.message.reply_text("Cooking link is not vaild, please input again!")
+    else:
+        update.message.reply_text("Cooking link is missing, please input again!")
 
-def error_handler(update, context):
-    """Log the error and send a message to the user."""
-    logging.warning('Update "%s" caused error "%s"', update, context.error)
-    # context.bot.send_message(chat_id=update.message.chat_id, text="Sorry, an error occurred.")
+def tvshow_write(update, context):
+    message = update.message
+    if message is None:
+        query = update.callback_query
+        if query.data == str(TVSHOW_WRITE):
+            context.bot.send_message(chat_id=update.effective_chat.id, 
+                                        text='Please share the review of this tv show')
+            return TVSHOW_WRITE
+        elif query.data == str(TVSHOW_END):
+            context.bot.send_message(chat_id=update.effective_chat.id, 
+                                        text="Click /start to try again")
+            return ConversationHandler.END
+    elif message.text is not None:
+        global tvReview
+        tvshow_data = {
+            "link" : tvReview["link"],
+            "id" : message.chat.id,
+            "review" : message.text
+        }
+        redis_conn.lpush("tvshow", json.dumps(tvshow_data))
+        update.message.reply_text("Thank you for your share, Click /start to try again")
+        return ConversationHandler.END
+    else:
+        update.message.reply_text("Your review is missing, please input again!")
+   
+def hiking_options(update, context):
+    query = update.callback_query
+    if query.data == str(HIKING_READ):
+        return hiking_read(update, context)
+    elif query.data == str(HIKING_WRITE):
+        message = "Please share photo and input route information in the photo caption"
+        context.bot.send_message(chat_id=update.effective_chat.id,  text=message)
+        return int(query.data)
 
-
-def welcome(update, context):
-    welcome_message = '''Hello and welcome, {}.
-I'm your leisure activity chatbot assistant and provide you 3 functions.
-send /hiking to check hiking information in Hong Kong
-send /tvshow to read or write review to TV show in Neflex
-send /cook to view the cooking video from youtube'''.format(
-        update.message.from_user.first_name)
-    context.bot.send_message(chat_id=update.effective_chat.id,
-                             text=welcome_message)
-
-
-def get_read_write_option():
+def cooking_options(update, context):
+    query = update.callback_query
+    if query.data == str(COOKING_READ):
+        return cooking_read(update, context)
+    elif query.data == str(COOKING_WRITE):
+        message = "Please upload cooking video or share the cooking video link"
+        context.bot.send_message(chat_id=update.effective_chat.id,  text=message)
+        return int(query.data)
+    
+def get_read_write_option(read_text, write_text, read, write):
     reply_keyboard_markup = InlineKeyboardMarkup(
         [
             [
             InlineKeyboardButton(
-                text="Read", callback_data="Read"),
+                text=read_text, callback_data=read),
             InlineKeyboardButton(
-                text="Write", callback_data="Write")
+                text=write_text, callback_data=write)
             ]
         ]
     )
     return reply_keyboard_markup
 
+def cancel(update, context):
+    print('cancel invoke')
+    ConversationHandler.END
+    hiking_entrance(update, context)
+
+def hiking_conv_handler():
+    conv_handler = ConversationHandler(
+    entry_points=[CommandHandler('hiking', hiking_entrance)],
+    states={
+        HIKING_OPTIONS: [CallbackQueryHandler(hiking_options)],
+        HIKING_READ: [MessageHandler(Filters.text, hiking_read)],
+        HIKING_WRITE: [MessageHandler(Filters.all, hiking_write)],
+        HIKING_READ_PHOTO: [CallbackQueryHandler(hiking_photo)]
+    },
+    fallbacks=[CommandHandler('cancel', cancel)]
+    )
+    return conv_handler
+
+def tv_show_conv_handler():
+    conv_handler = ConversationHandler(
+    entry_points=[CommandHandler('tvshow', tvshow_read)],
+    states={
+        TVSHOW_READ_PHOTO: [CallbackQueryHandler(tvshow_photo)],
+        TVSHOW_WRITE_PROMPT: [CallbackQueryHandler(tvshow_write)],
+        TVSHOW_WRITE: [MessageHandler(Filters.text, tvshow_write)]
+    },
+    fallbacks=[CommandHandler('cancel', cancel)]
+    )
+    return conv_handler
+
+def cook_conv_handler():
+    conv_handler = ConversationHandler(
+    entry_points=[CommandHandler('cooking', cooking_entrance)],
+    states={
+        COOKING_OPTIONS: [CallbackQueryHandler(cooking_options)],
+        COOKING_READ: [MessageHandler(Filters.text, cooking_read)],
+        COOKING_WRITE: [MessageHandler(Filters.all, cooking_write)],
+        COOKING_READ_VIDEO: [CallbackQueryHandler(cooking_video)]
+    },
+    fallbacks=[CommandHandler('cancel', cancel)]
+    )
+    return conv_handler
+
+def welcome(update, context):
+    welcome_message = '''Hello and welcome, {}.
+I'm your leisure activity chatbot assistant and provide you 3 functions.
+send /hiking to check or share hiking route in Hong Kong
+send /tvshow to read or write review to TV show in Neflex
+send /cooking to view or share the cooking video from youtube'''.format(
+        update.message.from_user.first_name)
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                             text=welcome_message)
+    return ConversationHandler.END
+
+def error_handler(update, context):
+    logging.warning('Update "%s" caused error "%s"', update, context.error)
+    context.bot.send_message(chat_id=update.message.chat_id, text="Sorry, an error occurred.")
+
+
+def main() -> None:
+    updater = Updater(token=(os.environ['ACCESS_TOKEN']), use_context=True)
+    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+    dispatcher = updater.dispatcher
+    default_handler = MessageHandler(Filters.all, welcome)
+    dispatcher.add_handler(hiking_conv_handler())
+    dispatcher.add_handler(tv_show_conv_handler())
+    dispatcher.add_handler(cook_conv_handler())
+    dispatcher.add_handler(default_handler)
+    dispatcher.add_error_handler(error_handler)
+    updater.start_polling()
+    updater.idle()
+
 
 if __name__ == '__main__':
     main()
-
-

@@ -3,3 +3,6 @@ k8s/chatbot-secret.yaml
 testing.py
 python/src/__pycache__
 deletcube.ps1
+python/src/autorerun.sh
+python/src/chatbot_old.py
+python/src/callopenai.py
