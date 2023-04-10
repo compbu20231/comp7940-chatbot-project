@@ -272,7 +272,7 @@ def cook_conv_handler():
 def welcome(update, context):
     welcome_message = '''Hello and welcome, {}.
 I'm your leisure activity chatbot assistant and provide you 3 functions.
-send /hiking to check or share hiking route in Hong Kong
+send /hiking to check or share hiking route and photos in Hong Kong
 send /tvshow to read or write review to TV show in Neflex
 send /cooking to view or share the cooking video from youtube'''.format(
         update.message.from_user.first_name)
