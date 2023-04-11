@@ -1,8 +1,8 @@
 docker-compose.yaml
+python/src/__pycache__
 python/src/*.sh
 python/src/chatbot_old.py
 python/src/callopenai.py
 k8s/chatbot-secret.yaml
 testing.py
-python/src/__pycache__
 deletcube.ps1
