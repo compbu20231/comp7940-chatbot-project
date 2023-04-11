@@ -29,6 +29,10 @@ spec:
         - name: chatbot-container
           image: eddie0228/chatbot:latest
           imagePullPolicy: Always
+          resources:
+          # limits:
+          #   memory: "128Mi"
+          #   cpu: "500m"
           env:
             - name: ACCESS_TOKEN
               valueFrom:

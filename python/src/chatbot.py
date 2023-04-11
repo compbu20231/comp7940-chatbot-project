@@ -11,8 +11,8 @@ import logging
 
 
 
-
-redis_conn = redis.Redis(host=(os.environ['HOST']), 
+global redis1
+redis1 = redis.Redis(host=(os.environ['HOST']), 
                          password=(os.environ['REDIS_PASSWORD']), 
                          port=(os.environ['REDISPORT']))
 
@@ -137,7 +137,7 @@ def hiking_write(update, context):
             "id" : message.chat.id,
             "route" : message.caption
         }
-        redis_conn.lpush("hiking", json.dumps(hiking_data))
+        redis1.lpush("hiking", json.dumps(hiking_data))
         update.message.reply_text("Thank you for your share, Click /start to try again")
         return ConversationHandler.END
     else:
@@ -152,7 +152,7 @@ def cooking_write(update, context):
             "caption": message.caption,
             "id" : message.chat.id,
         }
-        redis_conn.lpush("cooking", json.dumps(cooking_data))
+        redis1.lpush("cooking", json.dumps(cooking_data))
         update.message.reply_text("Thank you for your share, Click /start to try again")
         return ConversationHandler.END
     elif message.text is not None:
@@ -162,7 +162,7 @@ def cooking_write(update, context):
                 "link" : message.text,
                 "id" : message.chat.id,
             }
-            redis_conn.lpush("cooking", json.dumps(cooking_data))
+            redis1.lpush("cooking", json.dumps(cooking_data))
             update.message.reply_text("Thank you for your share, Click /start to try again")
             return ConversationHandler.END
         else:
@@ -189,7 +189,7 @@ def tvshow_write(update, context):
             "id" : message.chat.id,
             "review" : message.text
         }
-        redis_conn.lpush("tvshow", json.dumps(tvshow_data))
+        redis1.lpush("tvshow", json.dumps(tvshow_data))
         update.message.reply_text("Thank you for your share, Click /start to try again")
         return ConversationHandler.END
     else:
