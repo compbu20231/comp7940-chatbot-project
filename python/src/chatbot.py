@@ -123,6 +123,8 @@ def tvshow_photo(update, context):
                                         text='Do you want to write the review of this show ?', reply_markup=reply_markup)
                 return TVSHOW_WRITE_PROMPT
             else:
+                context.bot.send_message(chat_id=update.effective_chat.id, 
+                                        text='Sorry, the selected TV cannot find in netflix, please try another one')
                 tvshow_read(update, context)
     except:
         return tvshow_read(update, context)

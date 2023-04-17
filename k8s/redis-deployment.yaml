@@ -65,10 +65,10 @@ spec:
           volumeMounts:
             - name: efs-vol
               mountPath: /data
-          resources:
-            limits:
-              memory: "128Mi"
-              cpu: "500m"
+          # resources:
+          #   limits:
+          #     memory: "128Mi"
+          #     cpu: "500m"
       volumes:
         - name: efs-vol
           persistentVolumeClaim:
