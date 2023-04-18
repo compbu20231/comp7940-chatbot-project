@@ -35,5 +35,7 @@ jobs:
           aws-region: ap-east-1
       - name: Authenticate with EKS cluster
         run: aws eks --region ap-east-1 update-kubeconfig --name comp7940-chatbot-cluster
+      - name: Config EFS
+        run: kubectl apply -k "github.com/kubernetes-sigs/aws-efs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.5"
       - name: Deploy to EKS
         run: kubectl apply -f k8s/redis-deployment.yaml -f k8s/chatbot-deployment.yaml
